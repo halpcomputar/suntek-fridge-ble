@@ -66,6 +66,9 @@ SENSORS: tuple[SuntekSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         entity_category=EntityCategory.DIAGNOSTIC,
+        # The fridge reports tenths, and supply sag under compressor load is the most
+        # informative signal it emits — without this, 11.8 and 12.3 both render as "12".
+        suggested_display_precision=1,
         value=lambda status: status.voltage,
     ),
     SuntekSensorDescription(

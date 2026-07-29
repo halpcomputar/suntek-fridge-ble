@@ -36,9 +36,3 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # Skipped, not satisfied: HACS wants brand assets committed under
-          # custom_components/suntek_fridge_ble/brand/ or an entry in the
-          # home-assistant/brands repository. Neither exists yet. This only gates
-          # eligibility for the HACS default store — installing from a custom
-          # repository works regardless. Drop this line once brands are sorted.
-          ignore: brands
