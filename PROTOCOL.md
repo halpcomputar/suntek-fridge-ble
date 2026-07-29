@@ -29,12 +29,15 @@ as *Device Number*, so it identifies the model, not the individual unit. The app
 
 Advertised service UUID: **`FFF0`**. DFU: no.
 
-Advertisement manufacturer data (company ID `0x0C22`), one sample:
+Advertisement manufacturer data (company ID `0x0C22`), one sample with the unit's MAC
+masked:
 ```
-9FC5 6AA7 104B 0100 0000 AC00 0000 0000 0000 00
+XXXX XXXX XXXX 0100 0000 AC00 0000 0000 0000 00
 └──── MAC ────┘
 ```
-The app reports the device MAC as `9F:C5:6A:A7:10:4B` — byte-for-byte the first six bytes.
+The first six bytes are byte-for-byte the device MAC that the app shows under Device
+Settings. Everything after it was constant across every observation.
+
 **No telemetry is broadcast in the advertisement**, so passive monitoring without a
 connection is not possible; a client must connect and subscribe.
 
@@ -94,6 +97,10 @@ Battery protection cut-off bands, per the app: **L** 9.6–10.9 V, **M** 10.1–
 
 Field 12 matches the app's *Firmware number* field exactly — it is device metadata that
 happens to ride along in every status frame, not a per-frame checksum or counter.
+
+**Zone numbering.** On the reference unit (CRD2 V2.0 43QT) **zone 1 is the larger
+compartment** — the left one in the app — and zone 2 is the smaller. Verify per model
+before assuming; the protocol says nothing about compartment size.
 
 **Temperature encoding.** Always carries an explicit `+`/`-` sign, and is zero-padded to
 two digits — a °C capture reads `+13,+04,+01,-01`. Parsers must not assume a fixed width

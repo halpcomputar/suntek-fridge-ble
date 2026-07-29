@@ -1,0 +1,73 @@
+name: Report a fridge model
+description: Tell us whether your fridge speaks this protocol — working or not
+title: "[Model] "
+labels: ["model-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        `SC-BLE-1.0` is a generic module sold under many brands, so this protocol very
+        likely covers fridges well beyond the one it was mapped on. Reports either way
+        are useful — a confirmed incompatibility saves the next person an evening.
+
+  - type: input
+    id: model
+    attributes:
+      label: Brand and model
+      placeholder: e.g. BougeRV CRD2 V2.0 43QT
+    validations:
+      required: true
+
+  - type: input
+    id: ble_name
+    attributes:
+      label: Advertised BLE name
+      description: Shown by nRF Connect, or as "Device Number" in the vendor app.
+      placeholder: e.g. SYZ-D
+    validations:
+      required: true
+
+  - type: input
+    id: app
+    attributes:
+      label: Vendor app
+      placeholder: e.g. BougeRV (com.caption.bougerv)
+
+  - type: dropdown
+    id: gatt
+    attributes:
+      label: Which GATT service does it expose?
+      description: >
+        The definitive test. Connect with nRF Connect (or similar) and look at the
+        service list. If it is 1234, you want one of the Alpicool integrations linked
+        in the README instead — different protocol entirely.
+      options:
+        - FFF0 (write FFF1 / notify FFF4) — this protocol
+        - "1234 (write 1235 / notify 1236) — Alpicool protocol, not this one"
+        - Something else
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: frame
+    attributes:
+      label: A status frame, if you can capture one
+      description: >
+        Run `python3 tools/probe.py` from the repo, or read characteristic FFF4 in
+        nRF Connect. Please mask your device MAC if you paste advertisement data.
+      render: text
+      placeholder: /SC0/4/2,1,2,+54,+44,+34,+34,2,118,2,100,1,b01
+
+  - type: textarea
+    id: zones
+    attributes:
+      label: Zone layout
+      description: >
+        Single or dual zone? For dual-zone units, is zone 1 the larger compartment?
+        Frames from single-zone hardware are especially wanted — nobody has one yet.
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else

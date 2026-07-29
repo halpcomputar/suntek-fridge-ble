@@ -1,71 +1,115 @@
-# SUNTEK SC-BLE fridge → Home Assistant
+# SUNTEK Fridge BLE — Home Assistant integration
 
-Reverse-engineering a **BougeRV CRD2 V2.0** dual-zone 12V fridge (43QT, 240Wh battery)
-so Home Assistant can read and eventually control it locally over BLE.
+[![Validate](https://github.com/halpcomputar/suntek-fridge-ble/actions/workflows/validate.yml/badge.svg)](https://github.com/halpcomputar/suntek-fridge-ble/actions/workflows/validate.yml)
+[![hacs](https://img.shields.io/badge/HACS-custom-41BDF5.svg)](https://hacs.xyz/)
 
-The fridge uses a generic **SUNTEK `SC-BLE-1.0`** module speaking plain ASCII over GATT
-service `FFF0` — *not* the Alpicool `1234` binary protocol that the existing community
-fridge integrations implement. Nothing published covers this one, so: new project.
+Local Bluetooth monitoring for 12 V portable compressor fridges built on the **SUNTEK
+`SC-BLE-1.0`** module — reverse-engineered on a **BougeRV CRD2 V2.0** dual-zone fridge.
+No cloud, no vendor account, no ESP32.
 
-Because the module is generic, this likely applies to a range of rebadged 12V fridges,
-not just BougeRV. If the device advertises `FFF0` and the manufacturer string reads
-`SUNTEK`, it's probably this protocol.
+These fridges are **not** the Alpicool lineage. Alpicool, Brass Monkey, Bodega and their
+rebrands use GATT service `1234` with a binary `FE FE … sum16` protocol, and are already
+served by [alpicool_ha_ble](https://github.com/Gruni22/alpicool_ha_ble) and
+[refridge](https://github.com/LeanderM99/refridge). This hardware uses service `FFF0` and
+speaks newline-framed **ASCII CSV**. Nothing published covered it, hence this project.
 
-**[PROTOCOL.md](PROTOCOL.md) is the real artifact here** — the spec, what's confirmed,
-and what's still unknown.
+Because `SC-BLE-1.0` is a generic module, this likely works with a range of rebadged
+fridges beyond BougeRV. [Report your model](../../issues/new?template=model-report.yml) —
+compatible or not.
+
+## Does my fridge work?
+
+Brand names prove nothing. The test is the GATT service:
+
+| What you see | Verdict |
+|---|---|
+| Service `FFF0`, write `FFF1`, notify `FFF4` | ✅ this project |
+| Service `1234`, write `1235`, notify `1236` | ❌ use an Alpicool integration |
+| Advertised name starting `SYZ-` | ✅ strong signal |
+| Manufacturer string `SUNTEK`, model `SC-BLE-1.0` | ✅ strong signal |
+
+Check with [nRF Connect](https://www.nordicsemi.com/Products/Development-tools/nRF-Connect-for-mobile)
+on your phone, with the vendor app closed.
 
 ## Status
 
-- ✅ GATT layout mapped — `FFF1` write, `FFF4` read/notify, no bind handshake
-- ✅ Status frame decoded — 10 of 12 fields confirmed against the fridge's own display
-- ⬜ Remaining read-side unknowns (header digits, fields 11–12, Eco/°C values)
-- ⬜ Command format — needs a capture of the vendor app writing to `FFF1`
-- ⬜ Home Assistant integration
+**Read-only.** Everything the fridge reports is exposed as entities. Control — setpoints,
+power, Eco/Max — is not implemented yet: the command characteristic `FFF1` is write-only,
+so its format has to be captured from the vendor app. See
+[PROTOCOL.md](PROTOCOL.md#command-frame-fff1) for the method and the six-command checklist.
 
-## Layout
+10 of the 12 status fields are confirmed against the vendor app and the fridge's own
+display. The remaining two are documented as untestable on the reference unit rather than
+guessed at.
 
-```
-PROTOCOL.md          the spec — confirmed fields, open questions, capture method
-tools/probe.py       live BLE probe: subscribe, decode, diff frames
-captures/            raw frame logs (written by probe.py)
-```
+> ⚠️ The protocol layer is covered by tests, but the integration has not yet been run on a
+> live Home Assistant instance. Treat 0.1.0 as unproven and please report what breaks.
 
-## Running the probe
+## Entities
 
-The fridge accepts **one BLE connection at a time** — force-quit the BougeRV app first,
-or the probe won't be able to connect.
+| Entity | Type | Notes |
+|---|---|---|
+| Zone 1 / Zone 2 temperature | sensor | On the reference unit zone 1 is the larger compartment |
+| Zone 1 / Zone 2 setpoint | sensor | |
+| Input voltage | sensor | diagnostic |
+| Run mode | sensor | enum: Eco / Max |
+| Battery protection | sensor | enum: Low / Medium / High, diagnostic |
+| Power | binary_sensor | device class *running* |
+
+Temperatures are normalised to °C internally, so Home Assistant renders them in your
+preferred unit and long-term statistics survive you flipping the fridge between °F and °C.
+
+`iot_class` is `local_push`: the integration subscribes and never polls. The fridge sends
+a status frame every ~4 seconds, plus an immediate one on any change.
+
+## Installation
+
+### HACS
+
+1. HACS → ⋮ → **Custom repositories**
+2. Repository `https://github.com/halpcomputar/suntek-fridge-ble`, type **Integration**
+3. Download, then **restart Home Assistant**
+
+### Manual
+
+Copy `custom_components/suntek_fridge_ble/` into your Home Assistant
+`config/custom_components/` and restart.
+
+### Setup
+
+With the vendor app closed, the fridge should be auto-discovered under
+**Settings → Devices & Services**. Otherwise add it manually via **Add Integration →
+SUNTEK Fridge BLE**.
+
+## Requirements and limitations
+
+- A Bluetooth adapter in range, or an [ESPHome Bluetooth Proxy](https://esphome.io/components/bluetooth_proxy/).
+  Range is roughly 10 m.
+- **One BLE connection at a time.** While Home Assistant is connected the vendor app
+  cannot connect, and vice versa. The integration treats being dropped as normal and
+  reconnects with backoff.
+
+## Development
+
+The protocol layer has no Home Assistant dependency, so its tests run anywhere:
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python3 tools/probe.py
+pip install pytest && python3 -m pytest tests/ -q
 ```
 
-On macOS the terminal app needs Bluetooth permission
-(System Settings → Privacy & Security → Bluetooth) the first time.
-
-The probe prints each status frame decoded, highlighting fields that changed since the
-last one. To map an unknown field: start the probe, then change **exactly one** setting
-on the fridge's physical panel and watch which line lights up.
-
-### Mapping app-only settings
-
-The fridge's own panel only exposes power, up/down per zone, and the Eco/Max toggle —
-everything else lives in the app. Since only one BLE client can connect at a time, you
-can't watch live while using the app. Instead the probe **persists its last frame and
-diffs across sessions**:
-
-```bash
-python3 tools/probe.py --once     # snapshot current state, then quit
-```
-
-Then: open the app, change **one** setting, force-quit the app, and run `--once` again.
-The changed field is highlighted against the previous session's baseline.
+`tools/probe.py` is a standalone BLE probe that decodes frames live and highlights what
+changed — including across reconnects, which is how the app-only settings were mapped.
+See [PROTOCOL.md](PROTOCOL.md) for the full spec, what is confirmed, and what is not.
 
 ## Credit
 
-Protocol disambiguation and the Alpicool comparison draw on
-[Gruni22/alpicool_ha_ble](https://github.com/Gruni22/alpicool_ha_ble),
-[LeanderM99/refridge](https://github.com/LeanderM99/refridge), and
-[dandwhelan/Alpicool50l12vfridgefreezer](https://github.com/dandwhelan/Alpicool50l12vfridgefreezer) —
-different protocol, but their work is what made it fast to rule out.
+The Alpicool projects — [Gruni22/alpicool_ha_ble](https://github.com/Gruni22/alpicool_ha_ble),
+[LeanderM99/refridge](https://github.com/LeanderM99/refridge),
+[klightspeed/BrassMonkeyFridgeMonitor](https://github.com/klightspeed/BrassMonkeyFridgeMonitor),
+and [dandwhelan's compatibility notes](https://github.com/dandwhelan/Alpicool50l12vfridgefreezer) —
+cover a different protocol, but their documentation is what made it quick to rule that
+lineage out and start fresh.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
