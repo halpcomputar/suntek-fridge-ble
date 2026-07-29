@@ -139,3 +139,70 @@ def test_buffer_reset_discards_partial_data() -> None:
     buf.feed(b"/SC0/4/2,1,2,junk")
     buf.reset()
     assert buf.feed((CAPTURE_ECO + "\n").encode()) == [CAPTURE_ECO]
+
+
+# --------------------------------------------------------------------------- #
+#  Commands
+# --------------------------------------------------------------------------- #
+#
+# Vectors below are the literal frames the BougeRV app emitted, captured in
+# order via PacketLogger on 2026-07-28. Each one is tied to a known user action,
+# and the capture included a reversal pass that returned every setting to its
+# original value — which is what disambiguated SC6 from SC7, since run mode and
+# display unit share the same 001/002 encoding.
+
+
+def test_setpoint_commands_match_the_captured_frames() -> None:
+    assert protocol.set_setpoint(1, 35) == b"/SC3/1/+35\n"  # zone 1 up
+    assert protocol.set_setpoint(1, 34) == b"/SC3/1/+34\n"  # zone 1 back down
+    assert protocol.set_setpoint(2, 35) == b"/SC5/1/+35\n"  # zone 2 up
+    assert protocol.set_setpoint(2, 34) == b"/SC5/1/+34\n"  # zone 2 back down
+
+
+def test_run_mode_commands_match_the_captured_frames() -> None:
+    assert protocol.set_run_mode("eco") == b"/SC6/1/001\n"
+    assert protocol.set_run_mode("max") == b"/SC6/1/002\n"
+
+
+def test_display_unit_commands_match_the_captured_frames() -> None:
+    assert protocol.set_display_unit(fahrenheit=False) == b"/SC7/1/001\n"
+    assert protocol.set_display_unit(fahrenheit=True) == b"/SC7/1/002\n"
+
+
+def test_battery_protection_commands_match_the_captured_frames() -> None:
+    assert protocol.set_battery_protection("high") == b"/SC4/1/003\n"
+    assert protocol.set_battery_protection("medium") == b"/SC4/1/002\n"
+    # Low was never exercised by the capture; included for completeness.
+    assert protocol.set_battery_protection("low") == b"/SC4/1/001\n"
+
+
+def test_power_commands_match_the_captured_frames() -> None:
+    assert protocol.set_power(False) == b"/SC1/1/000\n"
+    assert protocol.set_power(True) == b"/SC1/1/001\n"
+
+
+def test_negative_and_three_digit_setpoints_stay_signed_and_padded() -> None:
+    assert protocol.set_setpoint(1, -1) == b"/SC3/1/-01\n"
+    assert protocol.set_setpoint(1, -20) == b"/SC3/1/-20\n"
+    assert protocol.set_setpoint(1, 0) == b"/SC3/1/+00\n"
+    assert protocol.set_setpoint(2, 100) == b"/SC5/1/+100\n"
+
+
+def test_command_enums_use_the_same_vocabulary_as_the_status_frame() -> None:
+    """Both directions share one encoding; a divergence here would be a bug."""
+    status = parse_frame(CAPTURE_ECO)
+    assert protocol.set_run_mode(status.run_mode) == b"/SC6/1/001\n"
+    assert protocol.set_battery_protection(status.battery_protection) == b"/SC4/1/002\n"
+
+
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda: protocol.set_setpoint(3, 34),
+        lambda: protocol.set_run_mode("turbo"),
+        lambda: protocol.set_battery_protection("extreme"),
+    ],
+)
+def test_invalid_command_arguments_raise(call) -> None:
+    with pytest.raises(ValueError):
+        call()

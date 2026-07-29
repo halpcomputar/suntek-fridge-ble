@@ -19,12 +19,16 @@ from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 
-from .const import CHAR_STATUS
+from .const import CHAR_COMMAND, CHAR_STATUS
 from .protocol import FrameBuffer, FrameError, FridgeStatus, parse_frame
 
 _LOGGER = logging.getLogger(__name__)
 
 RECONNECT_BACKOFF = (2, 5, 10, 20, 30, 60)
+
+
+class SuntekNotConnectedError(RuntimeError):
+    """Raised when a command is attempted with no live connection."""
 
 
 class SuntekFridgeDevice:
@@ -51,6 +55,20 @@ class SuntekFridgeDevice:
     @property
     def available(self) -> bool:
         return self._client is not None and self._client.is_connected and self.status is not None
+
+    async def async_send_command(self, payload: bytes) -> None:
+        """Write one command frame to the command characteristic.
+
+        No optimistic state update is needed: the fridge pushes a fresh status
+        frame immediately on any change, so the notification handler reflects the
+        result within a moment. If the write fails the state simply stays as it
+        was, which is the honest outcome.
+        """
+        client = self._client
+        if client is None or not client.is_connected:
+            raise SuntekNotConnectedError("Not connected to the fridge")
+        await client.write_gatt_char(CHAR_COMMAND, payload, response=False)
+        _LOGGER.debug("Sent %s", payload)
 
     def register_callback(self, callback: Callable[[], None]) -> Callable[[], None]:
         """Subscribe to status updates. Returns an unsubscribe callable."""

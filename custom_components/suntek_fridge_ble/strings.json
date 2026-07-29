@@ -18,9 +18,45 @@
     }
   },
   "entity": {
-    "binary_sensor": {
-      "power": {
-        "name": "Power"
+    "climate": {
+      "zone1": {
+        "name": "Zone 1",
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "eco": "Eco",
+              "max": "Max"
+            }
+          }
+        }
+      },
+      "zone2": {
+        "name": "Zone 2",
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "eco": "Eco",
+              "max": "Max"
+            }
+          }
+        }
+      }
+    },
+    "select": {
+      "battery_protection": {
+        "name": "Battery protection",
+        "state": {
+          "low": "Low (9.6-10.9 V)",
+          "medium": "Medium (10.1-11.4 V)",
+          "high": "High (11.1-12.4 V)"
+        }
+      },
+      "display_unit": {
+        "name": "Panel display unit",
+        "state": {
+          "celsius": "Celsius",
+          "fahrenheit": "Fahrenheit"
+        }
       }
     },
     "sensor": {
@@ -30,29 +66,13 @@
       "zone2_temperature": {
         "name": "Zone 2 temperature"
       },
-      "zone1_setpoint": {
-        "name": "Zone 1 setpoint"
-      },
-      "zone2_setpoint": {
-        "name": "Zone 2 setpoint"
-      },
       "voltage": {
         "name": "Input voltage"
-      },
-      "run_mode": {
-        "name": "Run mode",
-        "state": {
-          "eco": "Eco",
-          "max": "Max"
-        }
-      },
-      "battery_protection": {
-        "name": "Battery protection",
-        "state": {
-          "low": "Low",
-          "medium": "Medium",
-          "high": "High"
-        }
+      }
+    },
+    "switch": {
+      "power": {
+        "name": "Power"
       }
     }
   }

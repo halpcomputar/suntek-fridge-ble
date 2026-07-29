@@ -3,9 +3,9 @@
 [![Validate](https://github.com/halpcomputar/suntek-fridge-ble/actions/workflows/validate.yml/badge.svg)](https://github.com/halpcomputar/suntek-fridge-ble/actions/workflows/validate.yml)
 [![hacs](https://img.shields.io/badge/HACS-custom-41BDF5.svg)](https://hacs.xyz/)
 
-Local Bluetooth monitoring for 12 V portable compressor fridges built on the **SUNTEK
-`SC-BLE-1.0`** module — reverse-engineered on a **BougeRV CRD2 V2.0** dual-zone fridge.
-No cloud, no vendor account, no ESP32.
+Local Bluetooth monitoring **and control** for 12 V portable compressor fridges built on
+the **SUNTEK `SC-BLE-1.0`** module — reverse-engineered on a **BougeRV CRD2 V2.0**
+dual-zone fridge. No cloud, no vendor account, no ESP32.
 
 These fridges are **not** the Alpicool lineage. Alpicool, Brass Monkey, Bodega and their
 rebrands use GATT service `1234` with a binary `FE FE … sum16` protocol, and are already
@@ -33,18 +33,22 @@ on your phone, with the vendor app closed.
 
 ## Status
 
-**Read-only.** Everything the fridge reports is exposed as entities. Control — setpoints,
-power, Eco/Max — is not implemented yet: the command characteristic `FFF1` is write-only,
-so its format has to be captured from the vendor app. See
-[PROTOCOL.md](PROTOCOL.md#command-frame-fff1) for the method and the six-command checklist.
+**Full local control.** Both directions of the protocol are mapped: read and write. Set
+zone temperatures, power the fridge on and off, switch Eco/Max, and change the battery
+protection band — all over local Bluetooth, no cloud and no vendor account.
 
-10 of the 12 status fields are confirmed against the vendor app and the fridge's own
-display. The remaining two are documented as untestable on the reference unit rather than
-guessed at.
+10 of the 12 status fields, and every command the vendor app can send, are confirmed
+against captures. The two remaining status fields are documented as untestable on the
+reference unit rather than guessed at.
 
 **Confirmed working** on Home Assistant against a BougeRV CRD2 V2.0 43QT — auto-discovery,
-all seven entities populating, values matching the fridge's own display. Tested on exactly
-one unit, so reports from any other hardware are genuinely useful.
+every entity populating, values matching the fridge's own display. Tested on exactly one
+unit, so reports from any other hardware are genuinely useful.
+
+> The read path is verified on live hardware. The **write path is verified against the
+> vendor app's own captured frames** — every command is a byte-exact match for what the app
+> sends — but has not yet been exercised end-to-end from Home Assistant. Please report
+> anything that misbehaves.
 
 > **Setup gotcha:** the fridge allows a single BLE connection. If the vendor app (or a
 > scanner like nRF Connect) is holding it, the fridge stops advertising, discovery finds
@@ -55,12 +59,16 @@ one unit, so reports from any other hardware are genuinely useful.
 
 | Entity | Type | Notes |
 |---|---|---|
-| Zone 1 / Zone 2 temperature | sensor | On the reference unit zone 1 is the larger compartment |
-| Zone 1 / Zone 2 setpoint | sensor | |
-| Input voltage | sensor | diagnostic |
-| Run mode | sensor | enum: Eco / Max |
-| Battery protection | sensor | enum: Low / Medium / High, diagnostic |
-| Power | binary_sensor | device class *running* |
+| Zone 1 / Zone 2 | `climate` | Current + target temperature, on/off, Eco/Max preset. On the reference unit zone 1 is the larger compartment. |
+| Power | `switch` | Appliance-wide |
+| Battery protection | `select` | Low / Medium / High cut-off band |
+| Panel display unit | `select` | °C / °F on the fridge's own display |
+| Zone 1 / Zone 2 temperature | `sensor` | Kept separately for history and statistics |
+| Input voltage | `sensor` | Diagnostic |
+
+**Power and Eco/Max are appliance-wide, not per zone** — the protocol has no per-zone
+equivalent, so both climate entities report and control the same ones. Only the target
+temperature is genuinely per-zone.
 
 Temperatures are normalised to °C internally, so Home Assistant renders them in your
 preferred unit and long-term statistics survive you flipping the fridge between °F and °C.

@@ -161,50 +161,79 @@ became `+13/+04`.)
 There is no panel-lock control in the app, so — unlike the Alpicool protocol — this one
 likely does not expose one.
 
-## Command surface
-
-The complete set of writable settings, from the app's two screens. This doubles as the
-capture checklist for mapping `FFF1`:
-
-| Control | Where | Values |
-|---|---|---|
-| Power | main screen | on / off |
-| Zone 1 setpoint | main screen ▲▼ | °F/°C value |
-| Zone 2 setpoint | main screen ▲▼ | °F/°C value |
-| Run mode | main screen | ECO / MAX |
-| Battery protection | Device Settings | L / M / H |
-| Temperature unit | Device Settings | °C / °F |
-
-Six commands. Nothing else in the app writes to the device.
-
-**How to close these:** change exactly one setting at a time and diff the frames.
-`tools/probe.py` does this, including across reconnects — see the README for the
-app-settings workflow, which matters because the fridge's own panel only exposes
-power, up/down per zone, and the Eco/Max toggle. Everything else is app-only.
-
 ## Command frame (`FFF1`)
 
-**Entirely unknown.** `FFF1` is write-only, so the format cannot be read off the device —
-it has to be observed from the vendor app (`BougeRV`, `com.caption.bougerv`, by Guangzhou
-Boju Information Technology).
+Plain ASCII, newline-terminated, one payload item, **no checksum**:
 
-Strong prior: since status is ASCII with a `/SCn/` prefix, commands are almost certainly
-ASCII too, probably `/SC1/…` or similar.
+```
+/SC<index>/1/<value>\n
+```
 
-**Capture method (iOS + macOS):**
-1. Install Apple's Bluetooth logging profile on the iPhone —
-   <https://developer.apple.com/download/all/?q=bluetooth>
-2. Install **PacketLogger** (Additional Tools for Xcode), run it against the connected iPhone.
-3. Drive the BougeRV app: change setpoint, toggle Eco/Max, power off/on, change unit.
-   **Do one action at a time with a pause between**, so writes are unambiguous.
-4. Filter for ATT writes to handle of `FFF1`.
+The `1` is the payload item count; every known command carries exactly one.
 
-On Android the equivalent is Developer options → Enable Bluetooth HCI snoop log,
-then `adb pull` the btsnoop file and open in Wireshark.
+| Index | Command | Values | Confirmed |
+|---|---|---|---|
+| `1` | Power | `000` off, `001` on | ✅ |
+| `2` | — never observed | | ❓ |
+| `3` | Zone 1 setpoint | signed, e.g. `+34` | ✅ |
+| `4` | Battery protection | `001` L, `002` M, `003` H | ✅ |
+| `5` | Zone 2 setpoint | signed, e.g. `+34` | ✅ |
+| `6` | Run mode | `001` Eco, `002` Max | ✅ |
+| `7` | Display unit | `001` °C, `002` °F | ✅ |
 
-> ⚠️ Don't guess-and-blast arbitrary strings at `FFF1` to find the format. The comparable
-> Alpicool protocol has a factory-reset command; an unknown-protocol fuzz could plausibly
-> hit something equivalent. Get the format from a capture first.
+**Enumerated values reuse the status frame's vocabulary exactly** — run mode `1`/`2` is
+Eco/Max in both directions, battery protection `1`/`2`/`3` is L/M/H in both, display unit
+`1`/`2` is °C/°F in both. One encoding, both directions.
+
+**Values are zero-padded to three digits.** Temperatures instead carry an explicit sign
+and pad to two digits, matching how the status frame reports them: `+34`, `-01`.
+
+> ⚠️ **Setpoints must be sent in the unit the fridge is currently displaying.** Field 2 of
+> the status frame is the authority. Send `+34` while the panel is in °C and you have asked
+> for 34 °C, not 34 °F. Read before you write.
+
+Power and run mode are properties of the **appliance**, not a zone — there is no per-zone
+equivalent. Only setpoints are per-zone.
+
+### How this was established
+
+Captured from the vendor app (`BougeRV`, `com.caption.bougerv`) via PacketLogger on iOS,
+2026-07-28. Because the protocol is ASCII, the frames fall straight out of the capture with
+no packet dissection at all:
+
+```bash
+strings capture.pklg | grep -E '^/SC[1-9]/'
+```
+
+The capture drove one setting at a time, then **reversed every one of them**. That reversal
+pass is what made the mapping unambiguous: run mode and display unit share an identical
+`001`/`002` encoding, so payloads alone cannot tell them apart — only the position in a
+known action sequence can. Sorting or deduplicating the output destroys exactly the
+information needed, so keep it in capture order.
+
+The literal captured frames are used as test vectors in `tests/test_protocol.py`.
+
+### Still open
+
+- **Index `2`** is a gap in the numbering; the app never sent it during the capture.
+- **`/SC0/1/-01`** appeared once — command-shaped (`/1/` payload count) but using the `SC0`
+  prefix that status frames use, with a negative value matching nothing that was toggled.
+  Possibly a query, keepalive, or temperature-calibration write. Unidentified.
+
+### Capture method, for other models
+
+**iOS + macOS:** install Apple's Bluetooth logging profile
+(<https://developer.apple.com/bug-reporting/profiles-and-logs/>), reboot the phone, then
+capture with **PacketLogger** (Additional Tools for Xcode) → File → New iOS Trace.
+Disconnect any other BLE client first — including Home Assistant — or the app cannot
+connect and there is nothing to capture.
+
+**Android:** Developer options → Enable Bluetooth HCI snoop log, then `adb pull` the
+btsnoop file.
+
+> ⚠️ Don't guess-and-blast arbitrary strings at `FFF1` on an unmapped variant. The
+> comparable Alpicool protocol has a factory-reset command, and index `2` here is still
+> unknown. Capture first.
 
 ## Not Alpicool
 

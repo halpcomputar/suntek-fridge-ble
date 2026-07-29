@@ -46,20 +46,6 @@ SENSORS: tuple[SuntekSensorDescription, ...] = (
         value=lambda status: status.zone2_temp,
     ),
     SuntekSensorDescription(
-        key="zone1_setpoint",
-        translation_key="zone1_setpoint",
-        device_class=SensorDeviceClass.TEMPERATURE,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        value=lambda status: status.zone1_setpoint,
-    ),
-    SuntekSensorDescription(
-        key="zone2_setpoint",
-        translation_key="zone2_setpoint",
-        device_class=SensorDeviceClass.TEMPERATURE,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        value=lambda status: status.zone2_setpoint,
-    ),
-    SuntekSensorDescription(
         key="voltage",
         translation_key="voltage",
         device_class=SensorDeviceClass.VOLTAGE,
@@ -71,22 +57,10 @@ SENSORS: tuple[SuntekSensorDescription, ...] = (
         suggested_display_precision=1,
         value=lambda status: status.voltage,
     ),
-    SuntekSensorDescription(
-        key="run_mode",
-        translation_key="run_mode",
-        device_class=SensorDeviceClass.ENUM,
-        options=["eco", "max"],
-        value=lambda status: status.run_mode,
-    ),
-    SuntekSensorDescription(
-        key="battery_protection",
-        translation_key="battery_protection",
-        device_class=SensorDeviceClass.ENUM,
-        options=["low", "medium", "high"],
-        entity_category=EntityCategory.DIAGNOSTIC,
-        value=lambda status: status.battery_protection,
-    ),
 )
+# Setpoints, run mode and battery protection are deliberately not sensors: they
+# are now controllable, and are exposed as climate target/preset and selects.
+# A read-only duplicate of a writable value just invites confusion.
 
 
 async def async_setup_entry(
