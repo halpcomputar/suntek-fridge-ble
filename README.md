@@ -45,10 +45,8 @@ reference unit rather than guessed at.
 every entity populating, values matching the fridge's own display. Tested on exactly one
 unit, so reports from any other hardware are genuinely useful.
 
-> The read path is verified on live hardware. The **write path is verified against the
-> vendor app's own captured frames** — every command is a byte-exact match for what the app
-> sends — but has not yet been exercised end-to-end from Home Assistant. Please report
-> anything that misbehaves.
+Both directions are verified end to end on live hardware: status decoding, and every
+command driven from Home Assistant.
 
 > **Setup gotcha:** the fridge allows a single BLE connection. If the vendor app (or a
 > scanner like nRF Connect) is holding it, the fridge stops advertising, discovery finds
