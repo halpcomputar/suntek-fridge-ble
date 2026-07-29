@@ -29,14 +29,28 @@ as *Device Number*, so it identifies the model, not the individual unit. The app
 
 Advertised service UUID: **`FFF0`**. DFU: no.
 
-Advertisement manufacturer data (company ID `0x0C22`), one sample with the unit's MAC
-masked:
+Advertisement manufacturer data, one sample with the unit's MAC masked:
 ```
-XXXX XXXX XXXX 0100 0000 AC00 0000 0000 0000 00
+XXXX XXXX XXXX 104B 0100 0000 AC00 0000 0000 0000 0000 00
 └──── MAC ────┘
 ```
-The first six bytes are byte-for-byte the device MAC that the app shows under Device
-Settings. Everything after it was constant across every observation.
+The first six bytes are the device's BLE MAC. Everything after was constant across every
+observation.
+
+Note that scanners will report a **company ID of `0x0C22`** for this field — that is an
+artifact, not a real Bluetooth SIG assignment. The device writes its MAC starting at byte
+0 of the manufacturer-data field, and a scanner dutifully parses the first two bytes as a
+company identifier. There is no meaningful company ID here.
+
+> ⚠️ **The MAC shown in the BougeRV app is wrong — do not match on it.** The app displays
+> bytes **2–8** of the advertisement instead of 0–6, so it is shifted two bytes and picks
+> up two trailing bytes that are not part of the address. On the reference unit the app
+> shows `9F:C5:6A:A7:10:4B` while the actual address is `0C:22:9F:C5:6A:A7`.
+>
+> The real address is confirmed three ways: BlueZ/Home Assistant report it directly, it
+> matches the first six advertisement bytes, and it matches the System ID characteristic
+> (`2A23`) decoded per the BLE spec — reverse the little-endian value to
+> `0C:22:9F:00:00:C5:6A:A7`, then strip the inserted `0000`.
 
 **No telemetry is broadcast in the advertisement**, so passive monitoring without a
 connection is not possible; a client must connect and subscribe.

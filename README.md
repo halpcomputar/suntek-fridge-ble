@@ -42,8 +42,14 @@ so its format has to be captured from the vendor app. See
 display. The remaining two are documented as untestable on the reference unit rather than
 guessed at.
 
-> ⚠️ The protocol layer is covered by tests, but the integration has not yet been run on a
-> live Home Assistant instance. Treat 0.1.0 as unproven and please report what breaks.
+**Confirmed working** on Home Assistant against a BougeRV CRD2 V2.0 43QT — auto-discovery,
+all seven entities populating, values matching the fridge's own display. Tested on exactly
+one unit, so reports from any other hardware are genuinely useful.
+
+> **Setup gotcha:** the fridge allows a single BLE connection. If the vendor app (or a
+> scanner like nRF Connect) is holding it, the fridge stops advertising, discovery finds
+> nothing, and the config flow reports "No compatible fridge found". Force-quit anything
+> else that connects, then retry.
 
 ## Entities
 
