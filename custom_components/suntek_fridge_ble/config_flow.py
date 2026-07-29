@@ -79,14 +79,24 @@ class SuntekFridgeConfigFlow(ConfigFlow, domain=DOMAIN):
                 title=self._discovered_devices[address], data={CONF_ADDRESS: address}
             )
 
+        supported = [
+            info
+            for info in async_discovered_service_info(self.hass, connectable=True)
+            if _is_supported(info)
+        ]
         current = self._async_current_ids()
         self._discovered_devices = {
-            info.address: info.name
-            for info in async_discovered_service_info(self.hass, connectable=True)
-            if info.address not in current and _is_supported(info)
+            info.address: info.name for info in supported if info.address not in current
         }
         if not self._discovered_devices:
-            return self.async_abort(reason="no_devices_found")
+            # Distinguish "nothing out there" from "the only one is already set up".
+            # Reporting no_devices_found in the latter case sends people hunting for a
+            # Bluetooth problem that does not exist — a disabled config entry still
+            # counts as configured, and a disabled entry never connects, so the fridge
+            # sits there advertising happily while setup insists it cannot be found.
+            return self.async_abort(
+                reason="already_configured" if supported else "no_devices_found"
+            )
 
         return self.async_show_form(
             step_id="user",

@@ -12,7 +12,7 @@
       }
     },
     "abort": {
-      "already_configured": "This fridge is already configured",
+      "already_configured": "This fridge is already set up. If it is not working, check whether the existing entry is disabled (Settings → Devices & services) and enable it rather than adding it again.",
       "no_devices_found": "No compatible fridge found. Make sure it is powered on, in range, and that the vendor app is closed.",
       "not_supported": "This device is not a supported SUNTEK fridge"
     }
