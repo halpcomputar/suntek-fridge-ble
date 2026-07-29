@@ -1,0 +1,59 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "confirm": {
+        "description": "Add the fridge {name}?\n\nHome Assistant will hold a Bluetooth connection to it. The fridge accepts only one connection at a time, so the BougeRV app will not be able to connect while Home Assistant is connected."
+      },
+      "user": {
+        "data": {
+          "address": "Device"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This fridge is already configured",
+      "no_devices_found": "No compatible fridge found. Make sure it is powered on, in range, and that the vendor app is closed.",
+      "not_supported": "This device is not a supported SUNTEK fridge"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "power": {
+        "name": "Power"
+      }
+    },
+    "sensor": {
+      "zone1_temperature": {
+        "name": "Zone 1 temperature"
+      },
+      "zone2_temperature": {
+        "name": "Zone 2 temperature"
+      },
+      "zone1_setpoint": {
+        "name": "Zone 1 setpoint"
+      },
+      "zone2_setpoint": {
+        "name": "Zone 2 setpoint"
+      },
+      "voltage": {
+        "name": "Input voltage"
+      },
+      "run_mode": {
+        "name": "Run mode",
+        "state": {
+          "eco": "Eco",
+          "max": "Max"
+        }
+      },
+      "battery_protection": {
+        "name": "Battery protection",
+        "state": {
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      }
+    }
+  }
+}

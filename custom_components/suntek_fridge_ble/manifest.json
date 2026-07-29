@@ -1,0 +1,19 @@
+{
+  "domain": "suntek_fridge_ble",
+  "name": "SUNTEK Fridge BLE",
+  "bluetooth": [
+    {
+      "local_name": "SYZ-*",
+      "service_uuid": "0000fff0-0000-1000-8000-00805f9b34fb"
+    }
+  ],
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["bluetooth_adapters"],
+  "documentation": "https://github.com/darrelschreck/suntek-fridge-ble",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/darrelschreck/suntek-fridge-ble/issues",
+  "requirements": ["bleak-retry-connector>=3.5.0"],
+  "version": "0.1.0"
+}

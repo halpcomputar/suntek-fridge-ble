@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Transient probe state; the session-*.log captures are kept as evidence.
+captures/last-frame.txt
